@@ -1,0 +1,146 @@
+<html><body>
+<style>
+ svg{
+        font-family: Helvetica, Arial;
+    }
+</style>
+<svg width="1600" height="180" xmlns="http://www.w3.org/2000/svg">
+	<g id="svgtop">
+	</g>
+</svg>
+
+<script src="../source/timebands.js" ></script>
+
+<script>
+var svg = document.getElementsByTagName('svg')[0]; //Get svg element
+	
+var GX;
+function init() {
+	svg.addEventListener('mousewheel', handleMouseWheel, false);
+	var top = svg.getElementById('svgtop');
+	console.log(top);
+	var monthNames = ["January", "February", "March",
+				 "April", "May", "June", "July",
+				"August", "September", "October",
+				"November", "December"];
+	var mc2 = ["#DEF", "#ACE","#DEF",
+				"#CDA", "#EED", "#CDA",
+				"#FED", "#EDA", "#FED",
+				"#FC9", "#FEC", "#FC9"];
+	var mc = ["#FC9", "#FEC", "#FC9",
+				"#CDA", "#EED", "#CDA",
+				"#FC9", "#FEC", "#FC9",
+				"#CDA", "#EED", "#CDA"];
+	
+	var tb = new TimeBand(svg,2015,0);
+	GX = tb;
+	var style = new TextBoxStyle();
+	
+	var months = [];
+	var lastMonth = -1;
+	var days = new Band(tb,13);
+	style.fontSize=10;
+	for (var x = 0; x < 365; x++) {
+		var d = new Date(tb.startYear,tb.startMonth,x+1) ;
+		if (d.getMonth()!=lastMonth) {
+			months.push(x);
+			lastMonth = d.getMonth();
+		}
+		days.add(x,x+1, d.getDate(), style, d+"");
+	}
+	months.push(365);
+			
+	style.fontSize=18;
+	
+	var weeks = new Band(tb);
+	for (var x = 0; x < 52; x++) {
+		style.bgfill = (x % 2 == 1) ? "none" : "#eee";
+		style.textFill = (x % 2 == 0) ? "#fff" : "#fff";
+		weeks.add(x*7, x*7+7, ""+(x+1), style);
+	}
+	
+	var monthsBand = new Band(tb);
+	for (var i = 0; i < months.length-1; i++) {
+		var x = months[i];
+		var x2 = months[i+1];
+		var d = new Date(tb.startYear,tb.startMonth,x+1) ;
+		style.bgfill = mc[d.getMonth()];
+		monthsBand.add(x, x2, monthNames[d.getMonth()], style);
+	}
+	
+	var spacing = 7;
+	var height = 30;
+	
+	new Band(tb,spacing); 
+	
+	var b = new Band(tb,height);
+	var ss = new TextBoxStyle();
+	ss.fontSize = 30;
+	ss.rx = 3;
+	ss.ry = 3;
+	ss.bgfill = "#eee";
+		b.add(10,100, "Implementation", ss);
+	b.add(110,200, "ISSUES-32", ss);
+	
+	new Band(tb,spacing); 
+	
+	b = new Band(tb,height);
+	ss.bgfill = "#ddd";
+		b.add(50,80, "Design", ss);
+	b.add(150,240, "Arch review", ss);
+	
+	new Band(tb,spacing); 
+	
+	b = new Band(tb,height);
+	ss.bgfill = "#eee";
+		b.add(30,140, "Test", ss);
+	b.add(190,240, "Consolidation", ss);
+}
+ 
+svg.addEventListener("load",function() {
+	init();
+}, false);
+var zoom = 1.0;
+var centerX = 0.0;
+
+function handleMouseWheel(e) {
+	var factor = 1.;
+	if (e.wheelDelta <0) {
+		factor = 1.1;
+	} else {
+		factor = 1/1.1;
+	}
+
+	var rect = svg.getBoundingClientRect();
+    var mX = e.clientX - rect.left;
+	var w = svg.getBoundingClientRect().width;	
+	var dx = mX;
+	console.log(dx + " " + w + " " + mX);
+	centerX += dx*zoom*(1-factor);
+	zoom *= factor;
+	centerX = 0;
+	var top = svg.getElementById('svgtop');
+	var transform = "matrix(sx 0 0 1 tx 0)".replace("sx", zoom).replace("tx", centerX*zoom);
+	top.setAttribute("transform", transform);
+	console.log(transform);
+	for (var i = 0; i < GX.scalableElements.length; i++) {
+		var rectNode = GX.scalableElements[i].childNodes[0];
+		var textNode = GX.scalableElements[i].childNodes[1];
+		textNode.setAttribute("transform", "scale(" + (1/zoom) + ",1)");
+		var width = textNode.getBBox().width+5;
+		var rectWidth = rectNode.getBBox().width*zoom;
+		var opacity = 1;
+		if (width>rectWidth) {
+			opacity = 0;
+		}
+		if (textNode.textContent.startsWith("Jan")) {
+			console.log(textNode.textContent + " " + width + " " + rectWidth);
+		}
+		textNode.setAttribute("opacity",opacity);
+
+	}
+}
+
+</script>
+
+</body></html>
