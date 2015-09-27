@@ -54,11 +54,17 @@ Viewport.prototype.mouseDown = function(e) {
 	this.dirty = true;
 }
 
-var ScaleInfo = function(textWidth, rectWidth) {
+var ScaleInfo = function(textWidth, rectWidth, textHeight, rectHeight, uniformScale) {
 	this.textWidth = textWidth;
 	this.rectWidth = rectWidth;
+	this.textHeight = textHeight;
+	this.rectHeight = rectHeight;
+	this.uniformScale = uniformScale;
 	this.getRatio = function() {
 		return rectWidth / textWidth;
+	}
+	this.getHeightRatio = function() {
+		return rectHeight / textHeight;
 	}
 }
 
@@ -83,7 +89,13 @@ Viewport.prototype.redraw = function(rescale, e) {
 			var textNode = this.scalableElements[i].childNodes[1];
 			var width = textNode.getBBox().width + 5;
 			var rectWidth = rectNode.getBBox().width;
-			this.scaleMap.set(this.scalableElements[i], new ScaleInfo(width, rectWidth));
+			var height = textNode.getBBox().height-10 ;
+			var rectHeight = rectNode.getBBox().height;
+			if (this.scalableElements[i].uniformScale) {
+				console.log(width);
+				width = this.scalableElements[i].uniformScale;
+			}
+			this.scaleMap.set(this.scalableElements[i], new ScaleInfo(width, rectWidth,height,rectHeight, this.scalableElements[i].uniformScale));
 		}
 	}
 
@@ -93,24 +105,29 @@ Viewport.prototype.redraw = function(rescale, e) {
 		textNode.setAttribute("transform", "scale(" + (1 / this.zoom) + ",1)");
 		var scaleInfo = this.scaleMap.get(this.scalableElements[i]);
 		var ratio = scaleInfo.getRatio() * this.zoom;
-
+		
 		var opacity = 1;
 		if (scaleInfo.rectWidth * this.zoom < 5) {
 			rectNode.setAttribute("visibility", "hidden");
 		} else {
-			rectNode.setAttribute("visibility", "visibility");
+			rectNode.setAttribute("visibility", "visible");
 		}
-		if (ratio < 0.3) {
+		if (ratio < 0.1) {
 			textNode.setAttribute("visibility", "hidden");
 		} else {
-			textNode.setAttribute("visibility", "visibility");
+			textNode.setAttribute("visibility", "visible");
 			if (ratio < 1) {
-				textNode.setAttribute("transform", "scale(" + (ratio / this.zoom) + "," + 1 + ")");
-				textNode.setAttribute("x", 0);
-				//textNode.setAttribute("y", textNode.getBBox().height / ratio);
-
+				if (scaleInfo.uniformScale) {
+					textNode.setAttribute("visibility", "hidden");
+				rectNode.setAttribute("visibility", "hidden");
+			} else {
+					textNode.setAttribute("transform", "scale(" + (ratio / this.zoom)+ "," + ratio +  ")");
+					textNode.setAttribute("x", 0);
+					textNode.setAttribute("y", ((1.0/ratio)*2.0*scaleInfo.rectHeight/ 2 - scaleInfo.textHeight / 2));
+				}
 			} else {
 				textNode.setAttribute("x", (scaleInfo.rectWidth * this.zoom / 2 - scaleInfo.textWidth / 2));
+				textNode.setAttribute("y", (2.0*scaleInfo.rectHeight/ 2 - scaleInfo.textHeight / 2));
 			}
 		}
 
@@ -121,9 +138,9 @@ Viewport.prototype.redraw = function(rescale, e) {
 Viewport.prototype.mouseWheel = function(e) {
 	var factor = 1.;
 	if (e.deltaY > 0) {
-		factor = 1.4;
+		factor = 1.2;
 	} else {
-		factor = 1 / 1.4;
+		factor = 1 / 1.2;
 	}
 	e.preventDefault();
 
@@ -155,7 +172,7 @@ var Band = function(timeBand, height, name) {
 	timeBand.addBand(this);
 	if (name !== undefined) {
 		var s = new TextBoxStyle();
-		s.opacity = 0.8;
+		s.opacity = 1.0;
 		s.strokeWidth = 0.5;
 		s.bgfill = "#fff";
 		s.fontSize = 20;
@@ -187,8 +204,8 @@ Band.prototype = {
 		var y = this.yOffset;
 		var h = this.height;
 		if (style.section) {
-			y -= this.yOffset;
-			h += this.yOffset;
+			y -= this.yOffset-this.timeBand.headerHeight;
+			h += this.yOffset-this.timeBand.headerHeight;
 		}
 		var groupElement = timebands.addBox(target,
 			this.timeBand.cellWidth * fromDay, y,
@@ -198,6 +215,9 @@ Band.prototype = {
 		this.infos[groupElement] = " Text: " + text;
 			
 		if (target === this.timeBand.top) {
+			if (this.uniformScale) {
+				groupElement.uniformScale = this.uniformScale;
+			}
 			this.timeBand.scalableElements.push(groupElement);
 		}
 		var self = this;
@@ -243,13 +263,13 @@ var TimeBand = function(svg, startYear, startMonth, numberOfDays) {
 	this.view = new Viewport(svg);
 	var ne = document.createElementNS("http://www.w3.org/2000/svg", 'defs'); 
 	var l1=timebands.createLinearGradient("grad1", "0%", "30%", "0%", "100%");
-	l1.appendChild(timebands.createStop("0%","stop-color:rgb(255,255,255);stop-opacity:1"));
+	l1.appendChild(timebands.createStop("0%",  "stop-color:rgb(240,224,195);stop-opacity:1")); 
 	l1.appendChild(timebands.createStop("100%","stop-color:rgb(240,224,195);stop-opacity:1"));
 	var l2=timebands.createLinearGradient("grad3", "0%", "30%", "0%", "100%");
-	l2.appendChild(timebands.createStop("0%","stop-color:rgb(245,245,235);stop-opacity:1"));
+	l2.appendChild(timebands.createStop("0%","stop-color:rgb(255,255,255);stop-opacity:1"));
 	l2.appendChild(timebands.createStop("100%","stop-color:rgb(225,225,225);stop-opacity:1"));
 	var l3=timebands.createLinearGradient("grad2", "0%", "30%", "0%", "100%");
-	l3.appendChild(timebands.createStop("0%","stop-color:rgb(255,255,255);stop-opacity:1"));
+	l3.appendChild(timebands.createStop("0%","stop-color:rgb(192,208,163);stop-opacity:1"));
 	l3.appendChild(timebands.createStop("100%","stop-color:rgb(192,208,163);stop-opacity:1"));
 	ne.appendChild(l1);
 	ne.appendChild(l2);
@@ -308,6 +328,8 @@ TimeBand.prototype = {
 		var lastMonth = -1;
 		var lastWeek = -1;
 		var days = new Band(tb,13);
+		days.uniformScale = 16;
+		
 		style.fontSize=10;
 		for (var x = 0; x < this.numberOfDays; x++) {
 			var d = new Date(tb.startYear,tb.startMonth,x+1) ;
@@ -328,6 +350,7 @@ TimeBand.prototype = {
 		style.fontSize=18;
 
 		var weeksBand = new Band(tb);
+		weeksBand.uniformScale = 25;
 		for (var i = 0; i < weeks.length-1; i++) {
 			style.bgfill = (i % 2 == 1) ? "none" : "#eee";
 			style.textFill = (i % 2 == 0) ? "#fff" : "#fff";
@@ -336,6 +359,7 @@ TimeBand.prototype = {
 		}
 		
 		var monthsBand = new Band(tb);
+		monthsBand.uniformScale = 37;
 		for (var i = 0; i < months.length-1; i++) {
 			var x = months[i];
 			var x2 = months[i+1];
@@ -343,6 +367,41 @@ TimeBand.prototype = {
 			style.bgfill = TimeBand.monthColors[d.getMonth()];
 			monthsBand.add(x, x2, TimeBand.monthNames[d.getMonth()], style);
 		}
+		this.headerHeight = this.nextYOffset;
+	},
+	
+	addOverlay: function() {
+		var style = new TextBoxStyle();
+		var tb = this;
+		var weeks = [];
+		var lastWeek = -1;
+		style.fontSize=10;
+		for (var x = 0; x < this.numberOfDays; x++) {
+			var d = new Date(tb.startYear,tb.startMonth,x+1) ;
+			var week = d.getWeekNumber();
+			if (week!=lastWeek) {
+				weeks.push(x);
+				lastWeek = week;
+			}
+		}
+		
+		style.fontSize=18;
+		style.strokeWidth = 0.8;
+		style.textStroke = "#000";
+		style.textStrokeWidth = 0;
+		style.opacity = 0.03; 
+			
+		for (var i = 0; i < weeks.length-1; i++) {
+			style.bgfill = (i % 2 == 1) ? "#555" : "#555";
+			style.textFill = (i % 2 == 0) ? "#fff" : "#fff";
+			var currentDay = timebands.addBox(this.top,
+				this.cellWidth * (weeks[i]+5), this.headerHeight,
+				this.cellWidth * (2), this.nextYOffset-this.headerHeight,
+				"", style, "", true);
+		}
+		
+	
+	
 	}
 	
 };
@@ -399,7 +458,7 @@ timebands.createStop = function(offset,style) {
 }
 
 
-timebands.addBox = function(svg, x, y, w, h, text, style, hint) {
+timebands.addBox = function(svg, x, y, w, h, text, style, hint, ontop) {
     var g = document.createElementNS("http://www.w3.org/2000/svg", 'g');
     g.setAttribute("transform", "translate(" + x + "," + y + ")");
 
@@ -434,7 +493,7 @@ timebands.addBox = function(svg, x, y, w, h, text, style, hint) {
         g.appendChild(ti);
     }
 
-    if (svg.hasChildNodes() && svg.children !== undefined) {
+    if (svg.hasChildNodes() && svg.children !== undefined && ontop === undefined) {
         svg.insertBefore(g, svg.children[0]);
     } else {
         svg.appendChild(g);
@@ -467,7 +526,8 @@ timebands.init = function(svg, defs, startYear, startMonth, numberOfDays) {
 			ss.section = true;
 			b = new Band(tb,height, bs.name.substr(1));		
 		} else {
-			b = new Band(tb,height, bs.name);		
+			b = new Band(tb,height, bs.name);
+			bs.band = b;
 		}
 		for (var j = 0; j < bs.entries.length; j++) {
 			if (ss.section) ss.bgfill = (j % 2 == 0) ? "url(#grad1)" : "url(#grad2)";
@@ -476,6 +536,22 @@ timebands.init = function(svg, defs, startYear, startMonth, numberOfDays) {
 			b.add(interval[0],interval[1]+1, e.name, ss);
 		}
 	}
+	
+	tb.addOverlay();
+	
+	var today = new BandEntry("", new Date(), new Date());
+	ss.strokeWidth = 0.2;
+	ss.textStroke = "#000";
+	ss.textStrokeWidth = 0;
+	ss.opacity = 0.1; 
+	ss.bgfill = "red";
+	var ii = today.getIntervalRelativeToDate(startDate);
+		
+	var currentDay = timebands.addBox(tb.top,
+		tb.cellWidth * ii[0], tb.headerHeight,
+		tb.cellWidth * 1, tb.nextYOffset-tb.headerHeight,
+		"", ss, "", true);
+			
 	tb.view.scalableElements = tb.scalableElements;
 }
 
@@ -538,7 +614,7 @@ TimeParser.prototype = {
 			date = new Date(this.implicitYear, l[1]-1, l[0]);
 		} else if (l.length == 3) {
 			var y = l[2];
-			if (y<100) y+=2000; // two-digit year
+			if (y<100) y=2000+parseInt(y); // two-digit year
 			date = new Date(y, l[1]-1, l[0]);
 		} else {
 			throw "The date [" + b + "] did not contain one or two /-es";
