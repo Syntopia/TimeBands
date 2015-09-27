@@ -4,7 +4,7 @@ var Viewport = function(svg) {
 	this.svg = svg;
 	this.scalableElements = [];
 	var self = this;
-	this.svg.addEventListener('mousewheel', function(e) {
+	this.svg.addEventListener('wheel', function(e) {
 		self.mouseWheel(e);
 	}, false);
 	this.svg.addEventListener('mousedown', function(e) {
@@ -41,11 +41,17 @@ Viewport.prototype.mouseDown = function(e) {
 	this.dirty = true;
 }
 
-var ScaleInfo = function(textWidth, rectWidth) {
+var ScaleInfo = function(textWidth, rectWidth, textHeight, rectHeight, uniformScale) {
 	this.textWidth = textWidth;
 	this.rectWidth = rectWidth;
+	this.textHeight = textHeight;
+	this.rectHeight = rectHeight;
+	this.uniformScale = uniformScale;
 	this.getRatio = function() {
 		return rectWidth / textWidth;
+	}
+	this.getHeightRatio = function() {
+		return rectHeight / textHeight;
 	}
 }
 
@@ -59,8 +65,7 @@ Viewport.prototype.redraw = function(rescale, e) {
 	var w = svg.getBoundingClientRect().width;
 	var dx = mX * this.zoom;
 	var from = -this.centerX;
-	console.log("From: " + from + " to: " + (from + w / this.zoom) + " me:" + (from + (mX / this.zoom)));
-
+	//console.log("From: " + from + " to: " + (from + w / this.zoom) + " me:" + (from + (mX / this.zoom)));
 
 	if (!rescale) return;
 
@@ -71,7 +76,13 @@ Viewport.prototype.redraw = function(rescale, e) {
 			var textNode = this.scalableElements[i].childNodes[1];
 			var width = textNode.getBBox().width + 5;
 			var rectWidth = rectNode.getBBox().width;
-			this.scaleMap.set(this.scalableElements[i], new ScaleInfo(width, rectWidth));
+			var height = textNode.getBBox().height-10 ;
+			var rectHeight = rectNode.getBBox().height;
+			if (this.scalableElements[i].uniformScale) {
+				console.log(width);
+				width = this.scalableElements[i].uniformScale;
+			}
+			this.scaleMap.set(this.scalableElements[i], new ScaleInfo(width, rectWidth,height,rectHeight, this.scalableElements[i].uniformScale));
 		}
 	}
 
@@ -81,24 +92,29 @@ Viewport.prototype.redraw = function(rescale, e) {
 		textNode.setAttribute("transform", "scale(" + (1 / this.zoom) + ",1)");
 		var scaleInfo = this.scaleMap.get(this.scalableElements[i]);
 		var ratio = scaleInfo.getRatio() * this.zoom;
-
+		
 		var opacity = 1;
 		if (scaleInfo.rectWidth * this.zoom < 5) {
 			rectNode.setAttribute("visibility", "hidden");
 		} else {
-			rectNode.setAttribute("visibility", "visibility");
+			rectNode.setAttribute("visibility", "visible");
 		}
-		if (ratio < 0.3) {
+		if (ratio < 0.1) {
 			textNode.setAttribute("visibility", "hidden");
 		} else {
-			textNode.setAttribute("visibility", "visibility");
+			textNode.setAttribute("visibility", "visible");
 			if (ratio < 1) {
-				textNode.setAttribute("transform", "scale(" + (ratio / this.zoom) + "," + 1 + ")");
-				textNode.setAttribute("x", 0);
-				//textNode.setAttribute("y", textNode.getBBox().height / ratio);
-
+				if (scaleInfo.uniformScale) {
+					textNode.setAttribute("visibility", "hidden");
+				rectNode.setAttribute("visibility", "hidden");
+			} else {
+					textNode.setAttribute("transform", "scale(" + (ratio / this.zoom)+ "," + ratio +  ")");
+					textNode.setAttribute("x", 0);
+					textNode.setAttribute("y", ((1.0/ratio)*2.0*scaleInfo.rectHeight/ 2 - scaleInfo.textHeight / 2));
+				}
 			} else {
 				textNode.setAttribute("x", (scaleInfo.rectWidth * this.zoom / 2 - scaleInfo.textWidth / 2));
+				textNode.setAttribute("y", (2.0*scaleInfo.rectHeight/ 2 - scaleInfo.textHeight / 2));
 			}
 		}
 
@@ -108,10 +124,10 @@ Viewport.prototype.redraw = function(rescale, e) {
 
 Viewport.prototype.mouseWheel = function(e) {
 	var factor = 1.;
-	if (e.wheelDelta > 0) {
-		factor = 1.4;
+	if (e.deltaY > 0) {
+		factor = 1.2;
 	} else {
-		factor = 1 / 1.4;
+		factor = 1 / 1.2;
 	}
 	e.preventDefault();
 

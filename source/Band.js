@@ -5,11 +5,12 @@ var Band = function(timeBand, height, name) {
 		this.height = timeBand.defaultBandHeight;
 	}
 	this.yOffset = 0;
+	this.infos = {};
 	this.timeBand = timeBand;
 	timeBand.addBand(this);
 	if (name !== undefined) {
 		var s = new TextBoxStyle();
-		s.opacity = 0.8;
+		s.opacity = 1.0;
 		s.strokeWidth = 0.5;
 		s.bgfill = "#fff";
 		s.fontSize = 20;
@@ -41,21 +42,28 @@ Band.prototype = {
 		var y = this.yOffset;
 		var h = this.height;
 		if (style.section) {
-			y -= this.yOffset;
-			h += this.yOffset;
+			y -= this.yOffset-this.timeBand.headerHeight;
+			h += this.yOffset-this.timeBand.headerHeight;
 		}
 		var groupElement = timebands.addBox(target,
 			this.timeBand.cellWidth * fromDay, y,
 			this.timeBand.cellWidth * (toDay - fromDay), h,
 			text, style, hint);
+			
+		this.infos[groupElement] = " Text: " + text;
+			
 		if (target === this.timeBand.top) {
+			if (this.uniformScale) {
+				groupElement.uniformScale = this.uniformScale;
+			}
 			this.timeBand.scalableElements.push(groupElement);
 		}
+		var self = this;
+		groupElement.addEventListener('click', function(e) {
+			self.boxClicked(groupElement);
+		});
+				
 		if (!style.section) {
-			var self = this;
-			groupElement.addEventListener('click', function(e) {
-				self.boxClicked(groupElement);
-			});
 			groupElement.addEventListener('mouseover', function(e) {
 				self.boxMouseover(groupElement);
 			});
@@ -66,7 +74,9 @@ Band.prototype = {
 		return groupElement;
 	},
 
-	boxClicked: function(e) {},
+	boxClicked: function(e) {
+		console.log("Clicked: ", this.infos[e]);
+	},
 
 	boxMouseover: function(e) {
 		var rectNode = e.childNodes[0];

@@ -41,10 +41,16 @@ TimeParser.prototype = {
 	parseTime: function(b) {
 		b = b.trim();
 		var l = b.split("/");
-		if (l.length != 2) {
-			throw "The date [" + b + "] did not contain a /";
+		var date;
+		if (l.length == 2) {
+			date = new Date(this.implicitYear, l[1]-1, l[0]);
+		} else if (l.length == 3) {
+			var y = l[2];
+			if (y<100) y=2000+parseInt(y); // two-digit year
+			date = new Date(y, l[1]-1, l[0]);
+		} else {
+			throw "The date [" + b + "] did not contain one or two /-es";
 		}
-		var date = new Date(this.implicitYear, l[1]-1, l[0]);
 		console.log("Parsed date: " + date);
 		return date;
 	}
