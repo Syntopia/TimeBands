@@ -263,11 +263,11 @@ var TimeBand = function(svg, startYear, startMonth, numberOfDays) {
 	this.view = new Viewport(svg);
 	var ne = document.createElementNS("http://www.w3.org/2000/svg", 'defs'); 
 	var l1=timebands.createLinearGradient("grad1", "0%", "30%", "0%", "100%");
-	l1.appendChild(timebands.createStop("0%",  "stop-color:rgb(240,224,195);stop-opacity:1")); 
-	l1.appendChild(timebands.createStop("100%","stop-color:rgb(240,224,195);stop-opacity:1"));
+	l1.appendChild(timebands.createStop("0%",  "stop-color:rgb(240,224,195);stop-opacity:0.5")); 
+	l1.appendChild(timebands.createStop("100%","stop-color:rgb(240,224,195);stop-opacity:0.5"));
 	var l2=timebands.createLinearGradient("grad3", "0%", "30%", "0%", "100%");
-	l2.appendChild(timebands.createStop("0%","stop-color:rgb(255,255,255);stop-opacity:1"));
-	l2.appendChild(timebands.createStop("100%","stop-color:rgb(225,225,225);stop-opacity:1"));
+	l2.appendChild(timebands.createStop("0%","stop-color:rgb(255,255,255);stop-opacity:0.5"));
+	l2.appendChild(timebands.createStop("100%","stop-color:rgb(225,225,225);stop-opacity:0.5"));
 	var l3=timebands.createLinearGradient("grad2", "0%", "30%", "0%", "100%");
 	l3.appendChild(timebands.createStop("0%","stop-color:rgb(192,208,163);stop-opacity:1"));
 	l3.appendChild(timebands.createStop("100%","stop-color:rgb(192,208,163);stop-opacity:1"));
@@ -327,9 +327,10 @@ TimeBand.prototype = {
 		var weeksNumbers = [];
 		var lastMonth = -1;
 		var lastWeek = -1;
+		
+		// Create the days 
 		var days = new Band(tb,13);
 		days.uniformScale = 16;
-		
 		style.fontSize=10;
 		for (var x = 0; x < this.numberOfDays; x++) {
 			var d = new Date(tb.startYear,tb.startMonth,x+1) ;
@@ -349,6 +350,7 @@ TimeBand.prototype = {
 
 		style.fontSize=18;
 
+		// Create the weeks
 		var weeksBand = new Band(tb);
 		weeksBand.uniformScale = 25;
 		for (var i = 0; i < weeks.length-1; i++) {
@@ -358,6 +360,7 @@ TimeBand.prototype = {
 			weeksBand.add(weeks[i], weeks[i+1], weeksNumbers[i], style);
 		}
 		
+		// Create the months
 		var monthsBand = new Band(tb);
 		monthsBand.uniformScale = 37;
 		for (var i = 0; i < months.length-1; i++) {
@@ -397,7 +400,7 @@ TimeBand.prototype = {
 			var currentDay = timebands.addBox(this.top,
 				this.cellWidth * (weeks[i]+5), this.headerHeight,
 				this.cellWidth * (2), this.nextYOffset-this.headerHeight,
-				"", style, "", true);
+				"", style, "");
 		}
 		
 	
@@ -515,7 +518,7 @@ timebands.init = function(svg, defs, startYear, startMonth, numberOfDays) {
 	ss.fontSize = 20;
 	ss.rx = 3;
 	ss.ry = 3;
-	ss.bgfill = "url(#grad3)";
+	ss.bgfill = "#fff";
 	
 	var parser = new TimeBandsParser();
 	parser.parse(defs.innerHTML);
@@ -532,6 +535,7 @@ timebands.init = function(svg, defs, startYear, startMonth, numberOfDays) {
 		for (var j = 0; j < bs.entries.length; j++) {
 			if (ss.section) ss.bgfill = (j % 2 == 0) ? "url(#grad1)" : "url(#grad2)";
 			var e = bs.entries[j];
+			ss.bgfill = e.color;
 			var interval = e.getIntervalRelativeToDate(startDate);
 			b.add(interval[0],interval[1]+1, e.name, ss);
 		}
@@ -579,6 +583,7 @@ var BandEntry = function(name, from, to) {
 }
 
 var BandSection = function(name) {
+	
 	this.name = name;
 	this.entries = []; // of type BandEntry
 	this.toString = function() {
@@ -639,13 +644,30 @@ TimeBandsParser.prototype = {
 	},
 	
 	parseEntry: function(b) {
+		var re = /(.*)color\:(\S+)/; 
+		var m;
+ 
+		var color = "#fafafa";
+		if ((m = re.exec(b)) !== null) {
+			console.log("COLOR: " + m[1]);
+			color = m[2];
+			b = m[1];
+			console.log("new name: " + b);
+			
+		}
+		
 		var l = b.split(":");
 		if (l.length != 2) {
 			throw "The entry [" + b + "] did not contain exactly one colon";
 		}
 		var interval = this.timeParser.parseInterval(l[0]);
 		var name = l[1];
+		
+		
+		
 		var e = new BandEntry(name, interval[0], interval[1]);
+		e.color = color;
+		
 		return e;
 	},
 	
@@ -656,7 +678,9 @@ TimeBandsParser.prototype = {
 			if (i<lines.length-1) {
 				if (lines[i+1].startsWith("---")) {
 					bandSection = new BandSection(lines[i]);
-					this.addBandSection(bandSection);
+					if (!bandSection.name.startsWith("-")) {
+						this.addBandSection(bandSection);
+					}
 					i++;
 					continue;
 				}
